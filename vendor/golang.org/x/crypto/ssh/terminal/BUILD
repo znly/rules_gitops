@@ -9,6 +9,7 @@ go_library(
         "util_linux.go",
         "util_plan9.go",
         "util_solaris.go",
+        "util_windows.go",
     ],
     importmap = "github.com/adobe/rules_gitops/vendor/golang.org/x/crypto/ssh/terminal",
     importpath = "golang.org/x/crypto/ssh/terminal",
@@ -40,6 +41,9 @@ go_library(
         ],
         "@io_bazel_rules_go//go/platform:solaris": [
             "//vendor/golang.org/x/sys/unix:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:windows": [
+            "//vendor/golang.org/x/sys/windows:go_default_library",
         ],
         "//conditions:default": [],
     }),

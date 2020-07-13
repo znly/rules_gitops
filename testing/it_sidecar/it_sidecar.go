@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 	"k8s.io/client-go/util/homedir"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 type portForwardConf struct {
