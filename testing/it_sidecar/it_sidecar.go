@@ -311,6 +311,7 @@ func cleanup(clientset *kubernetes.Clientset) {
 
 func main() {
 	flag.Parse()
+	log.SetOutput(os.Stdout)
 
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 
