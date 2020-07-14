@@ -278,6 +278,8 @@ def _kubeconfig_impl(repository_ctx):
     if not kubectl:
         fail("Unable to find kubectl executable. PATH=%s" % repository_ctx.path)
     repository_ctx.symlink(kubectl, "kubectl")
+    repository_ctx.file(repository_ctx.path("cluster"), content=repository_ctx.attr.cluster, executable=False)
+
 
     # TODO: figure out how to use BUILD_USER
     if "USER" in repository_ctx.os.environ:
@@ -318,7 +320,6 @@ def _kubeconfig_impl(repository_ctx):
         home = repository_ctx.path(repository_ctx.os.environ["HOME"])
         kubeconfig = home.get_child(".kube").get_child("config")
         repository_ctx.symlink(kubeconfig, repository_ctx.path("kubeconfig"))
-        repository_ctx.file(repository_ctx.path("cluster"), content=repository_ctx.attr.cluster, executable=False)
     else:
         home = repository_ctx.path(repository_ctx.os.environ["HOME"])
         certs = home.get_child(".kube").get_child("certs")
