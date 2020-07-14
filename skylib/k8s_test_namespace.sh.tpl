@@ -24,6 +24,7 @@ TEST_UNDECLARED_OUTPUTS_DIR=${TEST_UNDECLARED_OUTPUTS_DIR:-.}
 
 KUBECTL=%{kubectl}
 KUBECONFIG=%{kubeconfig}
+CLUSTER_FILE=%{cluster}
 
 SET_NAMESPACE=%{set_namespace}
 IT_MANIFEST_FILTER=%{it_manifest_filter}
@@ -33,7 +34,7 @@ NAMESPACE_NAME_FILE=${TEST_UNDECLARED_OUTPUTS_DIR}/namespace
 KUBECONFIG_FILE=${TEST_UNDECLARED_OUTPUTS_DIR}/kubeconfig
 
 # get cluster and username from provided configuration
-CLUSTER=`cat ${TEST_UNDECLARED_OUTPUTS_DIR}/%{cluster}`
+CLUSTER=$(cat ${CLUSTER_FILE})
 USER=$(${KUBECTL} --kubeconfig=${KUBECONFIG} config view -o jsonpath='{.users[?(@.name == '"\"${CLUSTER}\")].name}")
 
 echo "Cluster: ${CLUSTER}" >&2
