@@ -319,7 +319,7 @@ def _kubeconfig_impl(repository_ctx):
     elif repository_ctx.attr.symlink:
         home = repository_ctx.path(repository_ctx.os.environ["HOME"])
         kubeconfig = home.get_child(".kube").get_child("config")
-        if repository_ctx.path(kubeconfig):
+        if repository_ctx.path(kubeconfig).exists:
             repository_ctx.symlink(kubeconfig, repository_ctx.path("kubeconfig"))
         else:
             _kubectl_config(repository_ctx, [
