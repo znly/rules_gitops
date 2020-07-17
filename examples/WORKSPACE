@@ -34,6 +34,7 @@ http_archive(
 )
 
 load("@com_adobe_rules_gitops//skylib:k8s.bzl", "kubeconfig")
+
 kubeconfig(
     name = "k8s_test",
     cluster = "kind-kind",

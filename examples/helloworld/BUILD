@@ -137,6 +137,6 @@ go_test(
     ],
     rundir = ".",
     deps = [
-        "@com_adobe_rules_gitops//testing/it_sidecar/client:go_default_library"
+        "@com_adobe_rules_gitops//testing/it_sidecar/client:go_default_library",
     ],
 )

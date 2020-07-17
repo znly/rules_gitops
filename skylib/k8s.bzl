@@ -278,8 +278,7 @@ def _kubeconfig_impl(repository_ctx):
     if not kubectl:
         fail("Unable to find kubectl executable. PATH=%s" % repository_ctx.path)
     repository_ctx.symlink(kubectl, "kubectl")
-    repository_ctx.file(repository_ctx.path("cluster"), content=repository_ctx.attr.cluster, executable=False)
-
+    repository_ctx.file(repository_ctx.path("cluster"), content = repository_ctx.attr.cluster, executable = False)
 
     # TODO: figure out how to use BUILD_USER
     if "USER" in repository_ctx.os.environ:
@@ -326,7 +325,7 @@ def _kubeconfig_impl(repository_ctx):
                 "set-cluster",
                 repository_ctx.attr.cluster,
                 "--server",
-                server
+                server,
             ])
     else:
         home = repository_ctx.path(repository_ctx.os.environ["HOME"])
@@ -627,7 +626,6 @@ k8s_test_setup = rule(
             executable = True,
             cfg = "host",
         ),
-
     },
     executable = True,
     implementation = _k8s_test_setup_impl,
