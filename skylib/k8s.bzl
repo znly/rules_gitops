@@ -93,7 +93,6 @@ def k8s_deploy(
         deps = [],
         deps_aliases = {},
         images = {},
-        image_chroot = None,  # DEPRECATED. ignored now. If default repo path is not working for you, use image_repository to change it
         image_registry = "docker.io",  # registry to push container to. jenkins will need an access configured for gitops to work. Ignored for mynamespace.
         image_repository = None,  # repository (registry path) to push container to. Generated from the image bazel path if empty.
         image_repository_prefix = None,  # Mutually exclusive with 'image_repository'. Add a prefix to the repository name generated from the image bazel path
@@ -121,8 +120,6 @@ def k8s_deploy(
     # NAMESPACE substitution is deferred until test_setup/kubectl/gitops
     if namespace == "{BUILD_USER}":
         gitops = False
-    if image_chroot:
-        print("image_chroot parameter of k8s_deploy rule in %s is ignored now. If default repo path is not working for you, use image_repository to change it." % native.package_name())
     if not gitops:
         # Mynamespace option
         if not namespace:
@@ -176,6 +173,7 @@ def k8s_deploy(
             srcs = [name],
             command = "delete",
             cluster = cluster,
+            push = False,
             user = user,
             namespace = namespace,
             visibility = visibility,
@@ -188,8 +186,6 @@ def k8s_deploy(
         )
     else:
         # gitops
-        if objects:
-            print("Warning: objects parameter of k8s_deploy should not be used for gitops in %s. make sure dependencies are processed independently." % native.package_name())
         if not namespace:
             fail("namespace must be defined for gitops k8s_deploy")
         images_v = []
@@ -314,7 +310,6 @@ def _kubeconfig_impl(repository_ctx):
         else:
             # fall back to the default
             server = "https://kubernetes.default"
-        print("Using in cluster configuration. Kubernetes master is running at %s" % server)
     elif repository_ctx.attr.symlink:
         home = repository_ctx.path(repository_ctx.os.environ["HOME"])
         kubeconfig = home.get_child(".kube").get_child("config")
@@ -611,7 +606,7 @@ k8s_test_setup = rule(
             executable = True,
         ),
         "_it_manifest_filter": attr.label(
-            default = Label("//it_manifest_filter:it_manifest_filter"),
+            default = Label("//testing/it_manifest_filter:it_manifest_filter"),
             cfg = "host",
             executable = True,
         ),
