@@ -21,6 +21,7 @@ load(
     kustomize_gitops = "gitops",
 )
 load("//skylib:push.bzl", "k8s_container_push")
+load("//skylib:flags.bzl", "expand_flags")
 
 def _runfiles(ctx, f):
     return "${RUNFILES}/%s" % _get_runfile_path(ctx, f)
@@ -91,9 +92,11 @@ def _image_pushes(name_suffix, images, image_registry, image_repository, image_r
                 image = image,
                 image_digest_tag = image_digest_tag,
                 legacy_image_name = image_name,
-                registry = image_registry,
                 repository = image_repository,
                 repository_prefix = image_repository_prefix,
+                **expand_flags(
+                    registry = image_registry,
+                )
             )
     return image_pushes
 
@@ -161,7 +164,6 @@ def k8s_deploy(
         )
         kustomize(
             name = name,
-            namespace = namespace,
             configmaps_srcs = configmaps_srcs,
             secrets_srcs = secrets_srcs,
             # disable_name_suffix_hash is renamed to configmaps_renaming in recent Kustomize
@@ -181,26 +183,33 @@ def k8s_deploy(
             patches = patches,
             objects = objects,
             visibility = visibility,
+            **expand_flags(
+                namespace = namespace,
+            )
         )
         kustomize_kubectl(
             name = name + ".apply",
             srcs = [name],
-            cluster = cluster,
-            user = user,
-            namespace = namespace,
             kubectl = kubectl,
             visibility = visibility,
+            **expand_flags(
+                cluster = cluster,
+                namespace = namespace,
+                user = user,
+            )
         )
         kustomize_kubectl(
             name = name + ".delete",
             srcs = [name],
             command = "delete",
-            cluster = cluster,
             push = False,
-            user = user,
-            namespace = namespace,
             kubectl = kubectl,
             visibility = visibility,
+            **expand_flags(
+                cluster = cluster,
+                namespace = namespace,
+                user = user,
+            )
         )
         show(
             name = name + ".show",
@@ -241,21 +250,24 @@ def k8s_deploy(
             common_labels = common_labels,
             common_annotations = common_annotations,
             patches = patches,
+            **expand_flags(
+                namespace = namespace,
+            )
         )
         kustomize_kubectl(
             name = name + ".apply",
             srcs = [name],
-            cluster = cluster,
-            user = user,
-            namespace = namespace,
             kubectl = kubectl,
             visibility = visibility,
+            **expand_flags(
+                cluster = cluster,
+                namespace = namespace,
+                user = user,
+            )
         )
         kustomize_gitops(
             name = name + ".gitops",
             srcs = [name],
-            cluster = cluster,
-            namespace = namespace,
             strip_prefixes = [
                 namespace + "-",
                 cluster + "-",
@@ -263,6 +275,11 @@ def k8s_deploy(
             deployment_branch = deployment_branch,
             release_branch_prefix = release_branch_prefix,
             visibility = ["//visibility:public"],
+            **expand_flags(
+                cluster = cluster,
+                namespace = namespace,
+                user = user,
+            )
         )
         show(
             name = name + ".show",

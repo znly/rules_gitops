@@ -17,6 +17,7 @@ Bazel rule for publishing images.
 """
 
 load("@bazel_skylib//lib:dicts.bzl", "dicts")
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@io_bazel_rules_docker//container:providers.bzl", "PushInfo")
 load(
     "@io_bazel_rules_docker//container:layer_tools.bzl",
@@ -185,6 +186,11 @@ Args:
         "registry": attr.string(
             doc = "The registry to which we are pushing.",
             default = "docker.io",
+        ),
+        "registry_flag": attr.label(
+            doc = "The registry to which we are pushing, configured as a build setting flag.",
+            default = None,
+            providers = [BuildSettingInfo],
         ),
         "repository": attr.string(
             doc = "the name of the image. If not present, default to the image's bazel target path",

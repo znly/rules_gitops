@@ -8,11 +8,13 @@
 # OF ANY KIND, either express or implied. See the License for the specific language
 # governing permissions and limitations under the License.
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@io_bazel_rules_docker//container:providers.bzl", "PushInfo")
 load(
     "@io_bazel_rules_docker//skylib:path.bzl",
     _get_runfile_path = "runfile",
 )
+load("//skylib:flags.bzl", "flag_or_string")
 load("//skylib:push.bzl", "K8sPushInfo")
 load("//skylib:stamp.bzl", "stamp")
 
@@ -109,9 +111,10 @@ def _kustomize_impl(ctx):
     for _, f in enumerate(ctx.files.manifests):
         kustomization_yaml += "- {}/{}\n".format(upupup, f.path)
 
-    if ctx.attr.namespace:
-        kustomization_yaml += "namespace: '{}'\n".format(ctx.attr.namespace)
-        use_stamp = use_stamp or "{" in ctx.attr.namespace
+    namespace = flag_or_string(ctx.attr, "namespace")
+    if namespace:
+        kustomization_yaml += "namespace: '{}'\n".format(namespace)
+        use_stamp = use_stamp or "{" in namespace
 
     if ctx.attr.name_prefix:
         kustomization_yaml += "namePrefix: '{}'\n".format(ctx.attr.name_prefix)
@@ -273,6 +276,10 @@ kustomize = rule(
         "name_prefix": attr.string(),
         "name_suffix": attr.string(),
         "namespace": attr.string(),
+        "namespace_flag": attr.label(
+            default = None,
+            providers = [BuildSettingInfo],
+        ),
         "objects": attr.label_list(doc = "a list of dependent kustomize objects", providers = (KustomizeInfo,)),
         "patches": attr.label_list(allow_files = True),
         "start_tag": attr.string(default = "{{"),
@@ -470,12 +477,12 @@ def _kubectl_impl(ctx):
     files = [] + ctx.files.srcs
     transitive = depset([])
 
-    cluster_arg = ctx.attr.cluster
+    cluster_arg = flag_or_string(ctx.attr, "cluster")
     cluster_arg = ctx.expand_make_variables("cluster", cluster_arg, {})
     if "{" in ctx.attr.cluster:
         cluster_arg = stamp(ctx, cluster_arg, files, ctx.label.name + ".cluster-name", True)
 
-    user_arg = ctx.attr.user
+    user_arg = flag_or_string(ctx.attr, "user")
     user_arg = ctx.expand_make_variables("user", user_arg, {})
     if "{" in ctx.attr.user:
         user_arg = stamp(ctx, user_arg, files, ctx.label.name + ".user-name", True)
@@ -505,7 +512,7 @@ def _kubectl_impl(ctx):
         files += [obj.files_to_run.executable for obj in trans_img_pushes]
         transitive = depset(transitive = [transitive] + [obj.default_runfiles.files for obj in trans_img_pushes])
 
-    namespace = ctx.attr.namespace
+    namespace = flag_or_string(ctx.attr, "namespace")
     for inattr in ctx.attr.srcs:
         for infile in inattr.files.to_list():
             statements.append(
@@ -540,10 +547,22 @@ def _kubectl_impl(ctx):
 kubectl = rule(
     attrs = {
         "srcs": attr.label_list(providers = (KustomizeInfo,)),
-        "cluster": attr.string(mandatory = True),
-        "namespace": attr.string(mandatory = True),
+        "cluster": attr.string(default = ""),
+        "cluster_flag": attr.label(
+            default = None,
+            providers = [BuildSettingInfo],
+        ),
+        "namespace": attr.string(default = ""),
+        "namespace_flag": attr.label(
+            default = None,
+            providers = [BuildSettingInfo],
+        ),
         "command": attr.string(default = "apply"),
         "user": attr.string(default = "{BUILD_USER}"),
+        "user_flag": attr.label(
+            default = None,
+            providers = [BuildSettingInfo],
+        ),
         "push": attr.bool(default = True),
         "kubectl" : attr.label(
             default = None,
