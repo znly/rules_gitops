@@ -74,7 +74,7 @@ show = rule(
     executable = True,
 )
 
-def _image_pushes(name_suffix, images, image_registry, image_repository, image_repository_prefix, image_digest_tag):
+def _image_pushes(name_suffix, images, image_registry, image_repository, image_repository_prefix, image_digest_tag, testonly):
     image_pushes = []
     for image_name in images:
         image = images[image_name]
@@ -94,6 +94,7 @@ def _image_pushes(name_suffix, images, image_registry, image_repository, image_r
                 legacy_image_name = image_name,
                 repository = image_repository,
                 repository_prefix = image_repository_prefix,
+                testonly = testonly,
                 **expand_flags(
                     registry = image_registry,
                 )
@@ -132,6 +133,7 @@ def k8s_deploy(
         start_tag = "{{",
         end_tag = "}}",
         kubectl = None,
+        testonly = False,
         visibility = None):
     """ k8s_deploy
     """
@@ -161,6 +163,7 @@ def k8s_deploy(
             image_repository = image_repository,
             image_repository_prefix = "{BUILD_USER}",
             image_digest_tag = image_digest_tag,
+            testonly = testonly,
         )
         kustomize(
             name = name,
@@ -182,6 +185,7 @@ def k8s_deploy(
             common_annotations = common_annotations,
             patches = patches,
             objects = objects,
+            testonly = testonly,
             visibility = visibility,
             **expand_flags(
                 namespace = namespace,
@@ -191,6 +195,7 @@ def k8s_deploy(
             name = name + ".apply",
             srcs = [name],
             kubectl = kubectl,
+            testonly = testonly,
             visibility = visibility,
             **expand_flags(
                 cluster = cluster,
@@ -204,6 +209,7 @@ def k8s_deploy(
             command = "delete",
             push = False,
             kubectl = kubectl,
+            testonly = testonly,
             visibility = visibility,
             **expand_flags(
                 cluster = cluster,
@@ -215,6 +221,7 @@ def k8s_deploy(
             name = name + ".show",
             namespace = namespace,
             src = name,
+            testonly = testonly,
             visibility = visibility,
         )
     else:
@@ -228,6 +235,7 @@ def k8s_deploy(
             image_repository = image_repository,
             image_repository_prefix = image_repository_prefix,
             image_digest_tag = image_digest_tag,
+            testonly = testonly,
         )
         kustomize(
             name = name,
@@ -238,6 +246,7 @@ def k8s_deploy(
             disable_name_suffix_hash = (configmaps_renaming != "hash"),
             images = image_pushes,
             manifests = manifests,
+            testonly = testonly,
             visibility = visibility,
             substitutions = substitutions,
             deps = deps,
@@ -258,6 +267,7 @@ def k8s_deploy(
             name = name + ".apply",
             srcs = [name],
             kubectl = kubectl,
+            testonly = testonly,
             visibility = visibility,
             **expand_flags(
                 cluster = cluster,
@@ -274,6 +284,7 @@ def k8s_deploy(
             ],
             deployment_branch = deployment_branch,
             release_branch_prefix = release_branch_prefix,
+            testonly = testonly,
             visibility = ["//visibility:public"],
             **expand_flags(
                 cluster = cluster,
@@ -285,6 +296,7 @@ def k8s_deploy(
             name = name + ".show",
             src = name,
             namespace = namespace,
+            testonly = testonly,
             visibility = visibility,
         )
 
