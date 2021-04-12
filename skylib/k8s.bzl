@@ -277,7 +277,7 @@ def k8s_deploy(
 
 # kubectl template
 def _kubectl_config(repository_ctx, args):
-    kubectl = repository_ctx.path("kubectl")
+    kubectl = repository_ctx.toolchains["@com_adobe_rules_gitops//toolchains:toolchain_type"].kubectl
     kubeconfig_yaml = repository_ctx.path("kubeconfig")
     exec_result = repository_ctx.execute(
         [kubectl, "--kubeconfig", kubeconfig_yaml, "config"] + args,
@@ -294,10 +294,7 @@ def _kubeconfig_impl(repository_ctx):
     """Find local kubernetes certificates"""
 
     # find and symlink kubectl
-    kubectl = repository_ctx.which("kubectl")
-    if not kubectl:
-        fail("Unable to find kubectl executable. PATH=%s" % repository_ctx.path)
-    repository_ctx.symlink(kubectl, "kubectl")
+    kubectl = repository_ctx.toolchains["@com_adobe_rules_gitops//toolchains:toolchain_type"].kubectl
 
     # TODO: figure out how to use BUILD_USER
     if "USER" in repository_ctx.os.environ:
@@ -421,7 +418,8 @@ def _stamp(ctx, string, output):
     )
 
 def _k8s_cmd_impl(ctx):
-    files = [ctx.executable._stamper, ctx.file.kubectl, ctx.file.kubeconfig]
+    kubectl = ctx.toolchains["@com_adobe_rules_gitops//toolchains:toolchain_type"].kubectl
+    files = [ctx.executable._stamper, ctx.file.kubeconfig] + kubectl.files
 
     # replace placeholders in the parameter value
     # see: https://github.com/bazelbuild/rules_docker#stamping
@@ -436,7 +434,7 @@ def _k8s_cmd_impl(ctx):
         template = ctx.file._template,
         substitutions = {
             "%{kubeconfig}": ctx.file.kubeconfig.path,
-            "%{kubectl}": ctx.file.kubectl.path,
+            "%{kubectl}": kubectl.files.to_list()[0].short_path,
             "%{statements}": command_arg,
         },
         output = ctx.outputs.executable,
@@ -449,11 +447,6 @@ _k8s_cmd = rule(
     attrs = {
         "command": attr.string(),
         "kubeconfig": attr.label(
-            allow_single_file = True,
-        ),
-        "kubectl": attr.label(
-            cfg = "host",
-            executable = True,
             allow_single_file = True,
         ),
         "_info_file": attr.label(
@@ -473,6 +466,7 @@ _k8s_cmd = rule(
     },
     executable = True,
     implementation = _k8s_cmd_impl,
+    toolchains = ["@com_adobe_rules_gitops//toolchains:toolchain_type"],
 )
 
 def _k8s_test_namespace_impl(ctx):
@@ -522,9 +516,10 @@ def _k8s_test_setup_impl(ctx):
     files = []  # runfiles list
     transitive = []
     commands = []  # the list of commands to execute
+    toolchain = ctx.toolchains["@com_adobe_rules_gitops//toolchains:toolchain_type"]
 
     # add files referenced by rule attributes to runfiles
-    files = [ctx.executable._stamper, ctx.file.kubectl, ctx.file.kubeconfig, ctx.executable._kustomize, ctx.executable._it_sidecar, ctx.executable._it_manifest_filter]
+    files = [ctx.executable._stamper, ctx.file.kubectl, ctx.file.kubeconfig, ctx.executable._it_sidecar, ctx.executable._it_manifest_filter]
     files += ctx.files._set_namespace
 
     push_statements, files, pushes_runfiles = imagePushStatements(ctx, [o for o in ctx.attr.objects if KustomizeInfo in o], files)
@@ -537,12 +532,14 @@ def _k8s_test_setup_impl(ctx):
             transitive.append(obj.default_runfiles.files)
 
             # add object' execution command
-            commands += [_runfiles(ctx, obj.files_to_run.executable) + " | ${SET_NAMESPACE} $NAMESPACE | ${IT_MANIFEST_FILTER} | ${KUBECTL} apply -f -"]
+            commands += [_runfiles(ctx, obj.files_to_run.executable) + " | ${IT_MANIFEST_FILTER} | ${KUBECTL} apply --namespace=$NAMESPACE -f -"]
         else:
             files += obj.files.to_list()
-            commands += [ctx.executable._template_engine.short_path + " --template=" + filename.short_path + " --variable=NAMESPACE=${NAMESPACE} | ${SET_NAMESPACE} $NAMESPACE | ${IT_MANIFEST_FILTER} | ${KUBECTL} apply -f -" for filename in obj.files.to_list()]
+            commands += [ctx.executable._template_engine.short_path + " --template=" + filename.short_path + " --variable=NAMESPACE=${NAMESPACE} | ${IT_MANIFEST_FILTER} | ${KUBECTL} apply --namespace=$NAMESPACE -f -" for filename in obj.files.to_list()]
 
     files += [ctx.executable._template_engine]
+    files += toolchain.kubectl.files.to_list()
+    files += toolchain.kustomize.files.to_list()
 
     # create namespace script
     ctx.actions.expand_template(
@@ -550,7 +547,7 @@ def _k8s_test_setup_impl(ctx):
         substitutions = {
             "%{it_sidecar}": ctx.executable._it_sidecar.short_path,
             "%{kubeconfig}": ctx.file.kubeconfig.path,
-            "%{kubectl}": ctx.file.kubectl.path,
+            "%{kubectl}": toolchain.kubectl.files.to_list()[0].short_path,
             "%{portforwards}": " ".join(["-portforward=" + p for p in ctx.attr.portforward_services]),
             "%{push_statements}": push_statements,
             "%{set_namespace}": ctx.executable._set_namespace.short_path,
@@ -576,12 +573,6 @@ k8s_test_setup = rule(
             default = Label("@k8s_test//:kubeconfig"),
             allow_single_file = True,
         ),
-        "kubectl": attr.label(
-            default = Label("@k8s_test//:kubectl"),
-            cfg = "host",
-            executable = True,
-            allow_single_file = True,
-        ),
         "objects": attr.label_list(
             cfg = "target",
         ),
@@ -590,11 +581,6 @@ k8s_test_setup = rule(
         "wait_for_apps": attr.string_list(),
         "_it_sidecar": attr.label(
             default = Label("//testing/it_sidecar:it_sidecar"),
-            cfg = "host",
-            executable = True,
-        ),
-        "_kustomize": attr.label(
-            default = Label("@kustomize_bin//:kustomize"),
             cfg = "host",
             executable = True,
         ),
@@ -626,4 +612,5 @@ k8s_test_setup = rule(
     },
     executable = True,
     implementation = _k8s_test_setup_impl,
+    toolchains = ["@com_adobe_rules_gitops//toolchains:toolchain_type"],
 )

@@ -18,7 +18,7 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
 load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
 load("@io_bazel_rules_docker//repositories:go_repositories.bzl", container_go_deps = "go_deps")
-load("@com_adobe_rules_gitops//skylib/kustomize:kustomize.bzl", "kustomize_setup")
+load("@com_adobe_rules_gitops//toolchains:k8s_toolchain.bzl", "k8s_register_toolchains")
 
 def rules_gitops_repositories():
     """Initializes Declares workspaces the GitOps rules depend on.
@@ -33,4 +33,4 @@ def rules_gitops_repositories():
     gazelle_dependencies()
     container_repositories()
     container_go_deps()
-    kustomize_setup(name = "kustomize_bin")
+    k8s_register_toolchains()

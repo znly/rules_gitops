@@ -10,7 +10,6 @@
 
 exports_files([
     "run-all.sh.tpl",
-    "kubectl.sh.tpl",
     "nameprefix_deployment_labels_config.yaml",
 ])
 

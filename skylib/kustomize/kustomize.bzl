@@ -16,38 +16,6 @@ load(
 load("//skylib:push.bzl", "K8sPushInfo")
 load("//skylib:stamp.bzl", "stamp")
 
-_binaries = {
-    "darwin_amd64": ("https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.5.5/kustomize_v3.5.5_darwin_amd64.tar.gz", "5e286dc6e02c850c389aa3c1f5fc4ff5d70f064e480d49e804f209c717c462bd"),
-    "linux_amd64": ("https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.5.5/kustomize_v3.5.5_linux_amd64.tar.gz", "23306e0c0fb24f5a9fea4c3b794bef39211c580e4cbaee9e21b9891cb52e73e7"),
-}
-
-def _download_binary_impl(ctx):
-    if ctx.os.name == "linux":
-        platform = "linux_amd64"
-    elif ctx.os.name == "mac os x":
-        platform = "darwin_amd64"
-    else:
-        fail("Platform " + ctx.os.name + " is not supported")
-    path = ctx.path("bin")
-
-    ctx.file("BUILD", """
-sh_binary(
-    name = "kustomize",
-    srcs = ["bin/kustomize"],
-    visibility = ["//visibility:public"],
-)
-""")
-
-    filename, sha256 = _binaries[platform]
-    ctx.download_and_extract(filename, "bin/", sha256 = sha256)
-
-_download_binary = repository_rule(
-    _download_binary_impl,
-)
-
-def kustomize_setup(name):
-    _download_binary(name = name)
-
 def _stamp_file(ctx, infile, output):
     stamps = [ctx.file._info_file]
     stamp_args = [
@@ -256,9 +224,10 @@ def _kustomize_impl(ctx):
 
         template_part += " "
 
+    kustomize = ctx.toolchains["@com_adobe_rules_gitops//toolchains:toolchain_type"].kustomize
     script = ctx.actions.declare_file("%s-kustomize" % ctx.label.name)
     script_content = _script_template.format(
-        kustomize = ctx.executable._kustomize_bin.path,
+        kustomize = kustomize.files.to_list()[0].path,
         kustomize_dir = root,
         resolver_part = resolver_part,
         template_part = template_part,
@@ -271,7 +240,7 @@ def _kustomize_impl(ctx):
         inputs = ctx.files.manifests + ctx.files.configmaps_srcs + ctx.files.secrets_srcs + ctx.files.configurations + [kustomization_yaml_file] + tmpfiles + ctx.files.patches + ctx.files.deps,
         executable = script,
         mnemonic = "Kustomize",
-        tools = [ctx.executable._kustomize_bin],
+        tools = kustomize.files,
     )
 
     transitive_files = [m[DefaultInfo].files for m in ctx.attr.manifests if KustomizeInfo in m]
@@ -326,12 +295,6 @@ kustomize = rule(
             default = Label("//skylib:more_stable_status.txt"),
             allow_single_file = True,
         ),
-        "_kustomize_bin": attr.label(
-            default = Label("@kustomize_bin//:kustomize"),
-            cfg = "host",
-            executable = True,
-            allow_files = True,
-        ),
         "_resolver": attr.label(
             default = Label("//resolver:resolver"),
             cfg = "host",
@@ -352,6 +315,7 @@ kustomize = rule(
     outputs = {
         "yaml": "%{name}.yaml",
     },
+    toolchains = ["@com_adobe_rules_gitops//toolchains:toolchain_type"],
 )
 
 def _runfiles(ctx, f):
@@ -521,6 +485,7 @@ def _kubectl_impl(ctx):
     kubectl_command_arg = ctx.attr.command
     kubectl_command_arg = ctx.expand_make_variables("kubectl_command", kubectl_command_arg, {})
 
+    kubectl = ctx.toolchains["@com_adobe_rules_gitops//toolchains:toolchain_type"].kubectl
     statements = ""
     transitive = None
 
@@ -540,10 +505,11 @@ def _kubectl_impl(ctx):
     namespace = ctx.attr.namespace
     for inattr in ctx.attr.srcs:
         for infile in inattr.files.to_list():
-            statements += "{template_engine} --template={infile} --variable=NAMESPACE={namespace} --stamp_info_file={info_file} | kubectl --cluster=\"{cluster}\" --user=\"{user}\" {kubectl_command} -f -\n".format(
+            statements += "{template_engine} --template={infile} --variable=NAMESPACE={namespace} --stamp_info_file={info_file} | {kubectl} --cluster=\"{cluster}\" --user=\"{user}\" {kubectl_command} -f -\n".format(
                 infile = infile.short_path,
                 cluster = cluster_arg,
                 user = user_arg,
+                kubectl = kubectl.files.to_list()[0].short_path,
                 kubectl_command = kubectl_command_arg,
                 template_engine = "${RUNFILES}/%s" % _get_runfile_path(ctx, ctx.executable._template_engine),
                 namespace = namespace,
@@ -551,6 +517,7 @@ def _kubectl_impl(ctx):
             )
 
     files += [ctx.executable._template_engine, ctx.file._info_file]
+    files += kubectl.files.to_list()
 
     ctx.actions.expand_template(
         template = ctx.file._template,
@@ -597,4 +564,5 @@ kubectl = rule(
     },
     executable = True,
     implementation = _kubectl_impl,
+    toolchains = ["@com_adobe_rules_gitops//toolchains:toolchain_type"],
 )

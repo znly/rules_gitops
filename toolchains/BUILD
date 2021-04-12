@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Copyright 2020 Adobe. All rights reserved.
 # This file is licensed to you under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License. You may obtain a copy
@@ -9,12 +8,9 @@
 # OF ANY KIND, either express or implied. See the License for the specific language
 # governing permissions and limitations under the License.
 
-set -euo pipefail
+package(default_visibility = ["//visibility:public"])
 
-function exe() { echo "\$ ${@/eval/}" ; "$@" ; }
+licenses(["notice"])  # Apache 2.0
 
-for src in %{sources}
-do
-    exe  %{kubectl_tool} --cluster="%{cluster}" --context="%{context}" --user="%{user}" %{kubectl_command} $@ -f ${src}
-done
-
+# Kubernetes toolchain type
+toolchain_type(name = "toolchain_type")
